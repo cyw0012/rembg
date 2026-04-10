@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>批量抠图工具</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg: #0f172a;
+      --bg-elevated: #111827;
+      --accent: #3b82f6;
+      --accent-soft: rgba(59, 130, 246, 0.15);
+      --accent-strong: #2563eb;
+      --danger: #ef4444;
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+      --border-subtle: rgba(148, 163, 184, 0.35);
+      --radius-lg: 16px;
+      --radius-md: 10px;
+      --shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.9);
+      --shadow-chip: 0 8px 18px rgba(15, 23, 42, 0.7);
+      --transition-fast: 160ms ease-out;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top left, #1d283a 0, #020617 52%, #020617 100%);
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+    }
+
+    .shell {
+      width: 100%;
+      max-width: 1120px;
+      background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.06), transparent 55%),
+                  radial-gradient(circle at top right, rgba(129, 140, 248, 0.08), transparent 60%),
+                  linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.98));
+      border-radius: 26px;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      box-shadow: var(--shadow-soft);
+      padding: 22px 24px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .shell::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), transparent 55%);
+      opacity: 0.14;
+      pointer-events: none;
+    }
+
+    .shell-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .shell-title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .shell-title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 30%, #38bdf8, #2563eb 55%, #0f172a 100%);
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.6),
+                  0 0 22px rgba(56, 189, 248, 0.85);
+    }
+
+    .shell-title {
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .shell-badge {
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(96, 165, 250, 0.8);
+      background: radial-gradient(circle at top, rgba(56, 189, 248, 0.18), rgba(15, 23, 42, 0.9));
+      color: rgba(191, 219, 254, 0.96);
+    }
+
+    .shell-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .shell-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.65);
+      background: rgba(15, 23, 42, 0.7);
+      color: rgba(209, 213, 219, 0.9);
+    }
+
+    .shell-pill-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.28);
+    }
+
+    .shell-body {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr);
+      gap: 20px;
+    }
+
+    @media (max-width: 900px) {
+      .shell {
+        padding: 18px 16px 18px;
+        border-radius: 20px;
+      }
+      .shell-body {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .panel {
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      background: radial-gradient(circle at top, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 1));
+      padding: 16px 16px 14px;
+      backdrop-filter: blur(10px);
+      box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.6);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: rgba(209, 213, 219, 0.95);
+    }
+
+    .panel-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .upload-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    .upload-row {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+    }
+
+    @media (max-width: 600px) {
+      .upload-row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+      }
+    }
+
+    .field-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .file-input-shell {
+      position: relative;
+      border-radius: var(--radius-md);
+      border: 1px dashed rgba(148, 163, 184, 0.7);
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.95));
+      padding: 8px 11px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      cursor: pointer;
+      transition: border-color var(--transition-fast), background var(--transition-fast), transform 120ms ease-out;
+    }
+
+    .file-input-shell:hover {
+      border-color: rgba(96, 165, 250, 0.95);
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.96));
+      transform: translateY(-0.5px);
+    }
+
+    .file-input-shell:active {
+      transform: translateY(0.5px);
+    }
+
+    .file-input-shell span {
+      font-size: 12px;
+      color: rgba(209, 213, 219, 0.96);
+    }
+
+    .file-input-shell small {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .file-input-shell button {
+      border: none;
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.55), rgba(37, 99, 235, 0.95));
+      color: #e5f2ff;
+      cursor: pointer;
+      box-shadow: var(--shadow-chip);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .file-input-shell button span {
+      font-size: 13px;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .chip {
+      font-size: 11px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      background: rgba(15, 23, 42, 0.85);
+      color: rgba(209, 213, 219, 0.9);
+    }
+
+    .chip strong {
+      color: #bfdbfe;
+    }
+
+    .primary-btn {
+      margin-top: 12px;
+      width: 100%;
+      border: none;
+      border-radius: 999px;
+      padding: 9px 14px;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 600;
+      background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.7), rgba(37, 99, 235, 1));
+      color: #e5f2ff;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 18px 40px rgba(37, 99, 235, 0.7);
+      transition: transform 130ms ease-out, box-shadow 160ms ease-out, filter 160ms ease-out, opacity 120ms ease-out;
+    }
+
+    .primary-btn[disabled] {
+      opacity: 0.55;
+      cursor: default;
+      box-shadow: none;
+      filter: grayscale(0.18);
+    }
+
+    .primary-btn:not([disabled]):hover {
+      transform: translateY(-1px);
+      box-shadow: 0 20px 42px rgba(37, 99, 235, 0.85);
+    }
+
+    .primary-btn:not([disabled]):active {
+      transform: translateY(1px);
+      box-shadow: 0 14px 26px rgba(37, 99, 235, 0.75);
+    }
+
+    .primary-btn-icon {
+      width: 15px;
+      height: 15px;
+      border-radius: 4px;
+      border: 1px solid rgba(15, 23, 42, 0.9);
+      background: radial-gradient(circle at 30% 20%, #e5e7eb, #93c5fd);
+      box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.5);
+    }
+
+    .hint {
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .hint strong {
+      color: #bfdbfe;
+    }
+
+    .progress-section {
+      margin-top: 16px;
+      border-radius: var(--radius-md);
+      padding: 10px 12px 10px;
+      background: radial-gradient(circle at top, rgba(37, 99, 235, 0.16), rgba(15, 23, 42, 0.9));
+      border: 1px solid rgba(59, 130, 246, 0.6);
+    }
+
+    .progress-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      gap: 8px;
+    }
+
+    .progress-label {
+      font-size: 12px;
+      color: rgba(219, 234, 254, 0.96);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .progress-meta {
+      font-size: 11px;
+      color: rgba(191, 219, 254, 0.9);
+    }
+
+    .progress-bar-shell {
+      position: relative;
+      width: 100%;
+      height: 9px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      overflow: hidden;
+      box-shadow: inset 0 0 0 1px rgba(30, 64, 175, 0.7);
+    }
+
+    .progress-bar-fill {
+      position: absolute;
+      inset: 0;
+      transform-origin: left;
+      transform: scaleX(0);
+      background: linear-gradient(90deg, #38bdf8, #3b82f6, #a855f7);
+      transition: transform 200ms ease-out;
+    }
+
+    .status-row {
+      margin-top: 6px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: rgba(191, 219, 254, 0.9);
+    }
+
+    .status-row span {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3);
+    }
+
+    .status-dot-danger {
+      background: #ef4444;
+      box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.4);
+    }
+
+    .status-row .muted {
+      color: rgba(148, 163, 184, 0.95);
+    }
+
+    .error-text {
+      margin-top: 6px;
+      font-size: 11px;
+      color: #fecaca;
+    }
+
+    .preview-panel {
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      background: radial-gradient(circle at bottom right, rgba(37, 99, 235, 0.18), rgba(15, 23, 42, 1));
+      padding: 14px 14px 12px;
+      backdrop-filter: blur(10px);
+      box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.75);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .preview-title {
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: rgba(209, 213, 219, 0.96);
+    }
+
+    .preview-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .download-btn {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.75);
+      background: rgba(15, 23, 42, 0.92);
+      color: rgba(209, 213, 219, 0.96);
+      font-size: 11px;
+      padding: 5px 11px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background var(--transition-fast), border-color var(--transition-fast), transform 120ms ease-out;
+    }
+
+    .download-btn[aria-disabled="true"] {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    .download-btn:not([aria-disabled="true"]):hover {
+      background: rgba(15, 23, 42, 0.98);
+      border-color: rgba(96, 165, 250, 0.95);
+      transform: translateY(-0.5px);
+    }
+
+    .download-icon {
+      width: 13px;
+      height: 13px;
+      border-radius: 4px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      display: inline-block;
+      position: relative;
+    }
+
+    .download-icon::before,
+    .download-icon::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(209, 213, 219, 0.96);
+    }
+
+    .download-icon::before {
+      top: 2px;
+      width: 2px;
+      height: 6px;
+    }
+
+    .download-icon::after {
+      bottom: 2px;
+      width: 7px;
+      height: 1.5px;
+    }
+
+    .download-icon span {
+      position: absolute;
+      bottom: 3px;
+      left: 50%;
+      width: 5px;
+      height: 5px;
+      border-left: 1.5px solid rgba(209, 213, 219, 0.96);
+      border-bottom: 1.5px solid rgba(209, 213, 219, 0.96);
+      transform: translateX(-50%) rotate(-45deg);
+    }
+
+    .preview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 8px;
+      max-height: 320px;
+      overflow: auto;
+      padding: 4px 2px 2px;
+    }
+
+    .thumb {
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      background: radial-gradient(circle at top, #0b1120, #020617);
+      border: 1px solid rgba(31, 41, 55, 0.95);
+      box-shadow: 0 10px 26px rgba(15, 23, 42, 0.8);
+    }
+
+    .thumb img {
+      width: 100%;
+      height: 80px;
+      object-fit: contain;
+      display: block;
+      background: radial-gradient(circle at top, #020617, #020617);
+    }
+
+    .thumb-meta {
+      position: absolute;
+      left: 6px;
+      bottom: 6px;
+      right: 6px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(15, 23, 42, 0.94), rgba(15, 23, 42, 0.96));
+      padding: 2px 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .thumb-meta span {
+      font-size: 10px;
+      color: rgba(209, 213, 219, 0.95);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .thumb-meta small {
+      font-size: 10px;
+      color: rgba(148, 163, 184, 0.95);
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="shell-header">
+      <div class="shell-title-group">
+        <div class="shell-title-row">
+          <div class="logo-dot"></div>
+          <div class="shell-title">
+            批量抠图
+            <span class="shell-badge">Background Removal</span>
+          </div>
+        </div>
+        <div class="shell-subtitle">上传单张图片或整文件夹，后端自动使用 rembg 进行高质量抠图。</div>
+      </div>
+      <div class="shell-pill">
+        <span class="shell-pill-dot"></span>
+        FastAPI · rembg · Async Upload
+      </div>
+    </div>
+
+    <div class="shell-body">
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">上传源图片</div>
+            <div class="panel-subtitle">支持多选图片或整个文件夹；每次任务会清空之前的缓存。</div>
+          </div>
+        </div>
+
+        <div class="upload-grid">
+          <div class="upload-row">
+            <div class="field-label">图片文件</div>
+            <label class="file-input-shell">
+              <div>
+                <span>选择一张或多张图片</span><br />
+                <small>支持 PNG / JPG / JPEG / WEBP / BMP</small>
+              </div>
+              <button type="button" onclick="document.getElementById('filesInput').click(); return false;">
+                <span>＋</span> 浏览
+              </button>
+              <input id="filesInput" type="file" multiple accept="image/*" />
+            </label>
+          </div>
+
+          <div class="upload-row">
+            <div class="field-label">图片文件夹</div>
+            <label class="file-input-shell">
+              <div>
+                <span>上传整个文件夹（保持层级）</span><br />
+                <small>需使用支持目录上传的浏览器，如 Chrome / Edge</small>
+              </div>
+              <button type="button" onclick="document.getElementById('folderInput').click(); return false;">
+                <span>📁</span> 选择文件夹
+              </button>
+              <input id="folderInput" type="file" webkitdirectory multiple accept="image/*" />
+            </label>
+          </div>
+        </div>
+
+        <div class="chip-row" id="summaryChip"></div>
+
+        <button id="startBtn" class="primary-btn">
+          <div class="primary-btn-icon"></div>
+          开始抠图
+        </button>
+        <div class="hint">
+          每次点击 <strong>开始抠图</strong> 会先清空 <code>cache/inputImg</code> 与 <code>cache/outputImg</code>，然后再写入并处理本次上传的图片。
+        </div>
+
+        <div id="progressSection" class="progress-section" style="display: none;">
+          <div class="progress-header">
+            <div class="progress-label">处理进度</div>
+            <div class="progress-meta" id="progressMeta">准备中…</div>
+          </div>
+          <div class="progress-bar-shell">
+            <div id="progressBar" class="progress-bar-fill"></div>
+          </div>
+          <div class="status-row">
+            <span><span class="status-dot"></span><span id="statusCount">0 / 0</span></span>
+            <span class="muted">成功 <span id="okCount">0</span> · 失败 <span id="failCount">0</span></span>
+          </div>
+          <div id="errorText" class="error-text" style="display:none;"></div>
+        </div>
+      </div>
+
+      <div class="preview-panel">
+        <div class="preview-header">
+          <div>
+            <div class="preview-title">抠图结果预览</div>
+            <div class="preview-subtitle" id="previewSubtitle">任务完成后将展示透明背景图片缩略图。</div>
+          </div>
+          <a id="downloadBtn" class="download-btn" href="javascript:void(0)" aria-disabled="true">
+            <span class="download-icon"><span></span></span>
+            <span id="downloadLabel">下载 ZIP</span>
+          </a>
+        </div>
+        <div id="previewGrid" class="preview-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const filesInput = document.getElementById('filesInput');
+    const folderInput = document.getElementById('folderInput');
+    const startBtn = document.getElementById('startBtn');
+    const summaryChip = document.getElementById('summaryChip');
+    const progressSection = document.getElementById('progressSection');
+    const progressBar = document.getElementById('progressBar');
+    const progressMeta = document.getElementById('progressMeta');
+    const statusCount = document.getElementById('statusCount');
+    const okCount = document.getElementById('okCount');
+    const failCount = document.getElementById('failCount');
+    const errorText = document.getElementById('errorText');
+    const previewGrid = document.getElementById('previewGrid');
+    const previewSubtitle = document.getElementById('previewSubtitle');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const downloadLabel = document.getElementById('downloadLabel');
+
+    let currentJobId = null;
+    let pollTimer = null;
+
+    function collectFiles() {
+      const files = [];
+      if (filesInput.files) {
+        for (const f of filesInput.files) files.push(f);
+      }
+      if (folderInput.files) {
+        for (const f of folderInput.files) files.push(f);
+      }
+      return files;
+    }
+
+    function updateSummaryChip() {
+      const files = collectFiles();
+      summaryChip.innerHTML = '';
+      if (!files.length) return;
+
+      const bySource = { files: 0, folders: 0 };
+      for (const f of files) {
+        if (f.webkitRelativePath && f.webkitRelativePath !== '') {
+          bySource.folders += 1;
+        } else {
+          bySource.files += 1;
+        }
+      }
+
+      const chip = document.createElement('div');
+      chip.className = 'chip';
+      chip.innerHTML = `<strong>${files.length}</strong> 个文件（单图 ${bySource.files} · 文件夹内 ${bySource.folders}）`;
+      summaryChip.appendChild(chip);
+    }
+
+    filesInput.addEventListener('change', updateSummaryChip);
+    folderInput.addEventListener('change', updateSummaryChip);
+
+    function setRunning(running) {
+      if (running) {
+        startBtn.setAttribute('disabled', 'true');
+        startBtn.textContent = '正在处理…';
+      } else {
+        startBtn.removeAttribute('disabled');
+        startBtn.textContent = '开始抠图';
+      }
+    }
+
+    function resetProgressUI() {
+      progressSection.style.display = 'none';
+      progressBar.style.transform = 'scaleX(0)';
+      progressMeta.textContent = '准备中…';
+      statusCount.textContent = '0 / 0';
+      okCount.textContent = '0';
+      failCount.textContent = '0';
+      errorText.style.display = 'none';
+      errorText.textContent = '';
+    }
+
+    function enableDownload(jobId) {
+      if (!jobId) return;
+      downloadBtn.setAttribute('href', `/api/trim/${jobId}/download`);
+      downloadBtn.setAttribute('aria-disabled', 'false');
+    }
+
+    function disableDownload() {
+      downloadBtn.setAttribute('href', 'javascript:void(0)');
+      downloadBtn.setAttribute('aria-disabled', 'true');
+      downloadLabel.textContent = '下载 ZIP';
+    }
+
+    async function startJob() {
+      const files = collectFiles();
+      if (!files.length) {
+        alert('请先选择要处理的图片或文件夹。');
+        return;
+      }
+
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+
+      setRunning(true);
+      resetProgressUI();
+      progressSection.style.display = 'block';
+      previewGrid.innerHTML = '';
+      previewSubtitle.textContent = '任务进行中…';
+      disableDownload();
+
+      const formData = new FormData();
+      for (const f of files) {
+        const rel = f.webkitRelativePath && f.webkitRelativePath !== '' ? f.webkitRelativePath : f.name;
+        formData.append('files', f, rel);
+      }
+
+      let resp;
+      try {
+        resp = await fetch('/api/trim', {
+          method: 'POST',
+          body: formData
+        });
+      } catch (err) {
+        console.error(err);
+        setRunning(false);
+        progressMeta.textContent = '网络错误';
+        errorText.style.display = 'block';
+        errorText.textContent = '无法连接后端，请检查 FastAPI 服务是否已启动。';
+        return;
+      }
+
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => '');
+        setRunning(false);
+        progressMeta.textContent = '启动任务失败';
+        errorText.style.display = 'block';
+        errorText.textContent = text || '后端返回错误。';
+        return;
+      }
+
+      const data = await resp.json();
+      currentJobId = data.job_id;
+      const total = data.total ?? 0;
+
+      progressMeta.textContent = '已提交任务，正在排队处理…';
+      statusCount.textContent = `0 / ${total}`;
+
+      pollTimer = setInterval(() => pollProgress(currentJobId), 1000);
+    }
+
+    async function pollProgress(jobId) {
+      if (!jobId) return;
+
+      let resp;
+      try {
+        resp = await fetch(`/api/trim/${jobId}/progress?_=${Date.now()}`);
+      } catch (err) {
+        console.error(err);
+        return;
+      }
+
+      if (!resp.ok) return;
+      const data = await resp.json();
+
+      const total = data.total ?? 0;
+      const done = data.done ?? 0;
+      const percent = data.percent ?? 0;
+      const ok = data.ok ?? 0;
+      const fail = data.fail ?? 0;
+      const status = data.status ?? 'running';
+      const error = data.error;
+
+      const ratio = Math.min(1, Math.max(0, percent / 100));
+      progressBar.style.transform = `scaleX(${ratio || 0.02})`;
+      progressMeta.textContent = status === 'done'
+        ? '处理完成'
+        : status === 'error'
+          ? '处理过程中出现错误'
+          : '正在处理…';
+      statusCount.textContent = `${done} / ${total}`;
+      okCount.textContent = ok;
+      failCount.textContent = fail;
+
+      if (error) {
+        errorText.style.display = 'block';
+        errorText.textContent = error;
+      }
+
+      if (status === 'done' || status === 'error') {
+        clearInterval(pollTimer);
+        pollTimer = null;
+        setRunning(false);
+        loadOutputs(jobId);
+        enableDownload(jobId);
+      }
+    }
+
+    async function loadOutputs(jobId) {
+      if (!jobId) return;
+      let resp;
+      try {
+        resp = await fetch(`/api/trim/${jobId}/outputs?_=${Date.now()}`);
+      } catch (err) {
+        console.error(err);
+        previewSubtitle.textContent = '加载结果时出错。';
+        return;
+      }
+
+      if (!resp.ok) {
+        previewSubtitle.textContent = '加载结果时出错。';
+        return;
+      }
+
+      const data = await resp.json();
+      const files = Array.isArray(data.files) ? data.files : [];
+      previewGrid.innerHTML = '';
+
+      if (!files.length) {
+        previewSubtitle.textContent = '没有生成任何输出文件。';
+        return;
+      }
+
+      if (files.length === 1) {
+        previewSubtitle.textContent = '已生成 1 张抠图结果。';
+        downloadLabel.textContent = '下载图片';
+      } else {
+        previewSubtitle.textContent = `共生成 ${files.length} 张抠图结果。`;
+        downloadLabel.textContent = '下载 ZIP';
+      }
+
+      files.forEach((relPath, idx) => {
+        const src = `/cache/${relPath}`;
+        const shortName = relPath.split('/').pop() || relPath;
+
+        const item = document.createElement('div');
+        item.className = 'thumb';
+
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = shortName;
+
+        const meta = document.createElement('div');
+        meta.className = 'thumb-meta';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = shortName;
+
+        const idxSpan = document.createElement('small');
+        idxSpan.textContent = `${idx + 1}/${files.length}`;
+
+        meta.appendChild(nameSpan);
+        meta.appendChild(idxSpan);
+
+        item.appendChild(img);
+        item.appendChild(meta);
+        previewGrid.appendChild(item);
+      });
+    }
+
+    startBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      startJob();
+    });
+  </script>
+</body>
+</html>
+
