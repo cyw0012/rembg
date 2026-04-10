@@ -1,5 +1,5 @@
 ## 抠图工具介绍
-  这是用python的fastapi框架使用rembg库实现的前后端抠图工具，直接运行fastapi1.py，然后浏览器打开 http://127.0.0.1:8000 网址即可。
+  这是用python的fastapi框架使用rembg库实现的前后端抠图工具，且可批量抠图，直接运行fastapi1.py，然后浏览器打开 http://127.0.0.1:8000 网址即可。
   如图所示：
   ![image](pic.png)
 
